@@ -57,14 +57,19 @@ class AdbRemoteClient(context: Context) {
         dadb = null
     }
 
-    /** Runs a raw shell command on the TV. Fire-and-forget from the UI's point of view. */
-    private suspend fun shell(cmd: String): Result<String> = withContext(Dispatchers.IO) {
-        val d = dadb ?: return@withContext Result.failure(IllegalStateException("Not connected"))
+    /**
+     * Runs a raw shell command on the TV — fire-and-forget.
+     * We open the shell stream and close it immediately instead of waiting for the TV
+     * to finish executing and stream back full output. For keyevents / launches we never
+     * needed that output anyway, and waiting for it was the main source of per-tap lag.
+     */
+    private suspend fun shell(cmd: String) = withContext(Dispatchers.IO) {
+        val d = dadb ?: return@withContext
         try {
-            val response = d.shell(cmd)
-            Result.success(response.output)
+            val stream = d.open("shell,v2,raw:$cmd")
+            stream.close()
         } catch (t: Throwable) {
-            Result.failure(t)
+            // Fire-and-forget: nothing to report back to the UI for a keyevent.
         }
     }
 
