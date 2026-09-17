@@ -37,11 +37,10 @@ class AdbRemoteClient(context: Context) {
     suspend fun connect(host: String, port: Int = 5555): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             dadb?.close()
-            val keyPair = if (privateKeyFile.exists() && publicKeyFile.exists()) {
-                AdbKeyPair.read(privateKeyFile, publicKeyFile)
-            } else {
+            if (!privateKeyFile.exists() || !publicKeyFile.exists()) {
                 AdbKeyPair.generate(privateKeyFile, publicKeyFile)
             }
+            val keyPair: AdbKeyPair = AdbKeyPair.read(privateKeyFile, publicKeyFile)
             dadb = Dadb.create(host, port, keyPair)
             // Sanity round-trip so a bad host/port/unaccepted-key fails fast.
             dadb!!.shell("echo connected")
